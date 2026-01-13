@@ -1,0 +1,12 @@
+{
+    "salmon_version": "1.9.0",
+    "threads": "8",
+    "index": "/mnt/scratchb/bioinformatics/sawle01/20230223_SawleA_ME_TestCovPlot/references/salmon_index",
+    "gcBias": [],
+    "libType": "A",
+    "mates1": "fastq/SRR7657879.sra_1.fastq.gz",
+    "mates2": "fastq/SRR7657879.sra_2.fastq.gz",
+    "output": "salmon/SRR7657879",
+    "writeMappings": [],
+    "auxDir": "aux_info"
+}

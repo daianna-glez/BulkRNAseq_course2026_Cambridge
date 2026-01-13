@@ -1,0 +1,18 @@
+{
+    "salmon_version": "1.9.0",
+    "threads": "8",
+    "index": "/mnt/scratchb/bioinformatics/sawle01/20230117_LythgoeE_JB_Ecotyper/references/salmon_index",
+    "gcBias": [],
+    "libType": "A",
+    "mates1": [
+        "fastq/SLX-22228.F11.HMJYNDRX2.s_1.r_1.fq.gz",
+        "fastq/SLX-22228.F11.HMJYNDRX2.s_2.r_1.fq.gz"
+    ],
+    "mates2": [
+        "fastq/SLX-22228.F11.HMJYNDRX2.s_1.r_2.fq.gz",
+        "fastq/SLX-22228.F11.HMJYNDRX2.s_2.r_2.fq.gz"
+    ],
+    "output": "salmon/SLX-22228/F11",
+    "writeMappings": [],
+    "auxDir": "aux_info"
+}
