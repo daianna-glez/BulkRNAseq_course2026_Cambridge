@@ -1,0 +1,333 @@
+---
+title: "Introduction to Gene Set Testing in R"
+date: "January 2026"
+output:
+  slidy_presentation: default
+  beamer_presentation: default
+  ioslides_presentation:
+    css: css/stylesheet.css
+    logo: ../images/CRUK_Cambridge_Institute.png
+    smaller: yes
+    widescreen: yes
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(gganimate)
+library(cowplot)
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  gganimate = list(
+    nframes = 50
+  ),
+  out.width = '100%',
+  dev.args=list(bg="transparent")
+)
+theme_set(theme_bw(base_size=12)) 
+theme_update(panel.background = element_rect(fill = "transparent", colour = NA), 
+             plot.background = element_rect(fill = "transparent", colour = NA)) 
+```
+
+## Differential Gene Expression Analysis Workflow {#less_space_after_title}
+
+<div style="line-height: 50%;"><br></div>
+
+<img src="../images/01s_workflow_3Day.svg" class="centerimg" style="width: 80%; margin-top: 60px;">
+
+## Gene Set Testing - Overview
+
+The list of differentially expressed genes is sometimes:
+
+* so long that its interpretation becomes cumbersome and time consuming,
+
+* or very short while some genes have low p-value yet higher than the given threshold.
+
+There are many approaches to searching for biological meaning in the results
+of differential expression analysis.
+
+Commonly we assess whether the differentially expressed genes (as a *set*) tend to relate
+to specific pathways or ontological groups of genes. 
+
+We will look at two methods:
+
+* Over Representation Analysis (ORA)
+
+* Gene Set Enrichment Analysis (GSEA)
+
+## Gene Set Testing - Resources
+
+Common sources of gene sets:
+
+* [KEGG pathways](https://www.kegg.jp/)
+
+* [Gene Ontologies](http://geneontology.org/docs/ontology-documentation/)
+
+* [Reactome](https://reactome.org/)
+
+* [Molecular Signature Database, MSigDB (GSEA)](https://www.gsea-msigdb.org/gsea/msigdb/)
+
+* Manually curated gene lists
+
+
+## Over Representation Analysis - Method
+
+* This method tests whether genes in a specific pathway are present in a subset of 
+  genes of interest in our data more than expected.
+
+* The genes of interest could be e.g. statistically significant differentially expressed
+  genes or a cluster of genes from hierachical or k-means clustering.
+  
+* We calculate the overlap between our genes of interest and genes in the pathway and assess
+  if the resulting intersection size is due to chance based on the Fisher’s exact test (aka hypergeometric test).
+
+<img src="../images/OverRepresentationAnalysis.svg" class="centerimg" style="width: 90%; margin-top=10px">
+
+## Over Representation Analysis - Example
+
+Genes in the experiment (the **gene universe** or **background**) are split in two ways:
+  
+* annotated to the pathway or not
+* differentially expressed or not
+
+Contingency table:
+
+<img src="../images/ContingencyTable2.png" class="centerimg" style="width: 35%">
+
+Calculate the probability of seeing such contingency table given the gene universe size (=20,000) and the number of genes of interest (=100) and genes in the pathway (=320) with the hypergeometric/Fisher's exact test. 
+
+For details see this [blog post](https://daianna-glez.github.io/daianna_blog/posts/2024-08-11-Fisher_test/).
+
+
+
+
+
+## Gene Set Enrichment Analysis (GSEA)
+
+* First proposed by Subramanian et al. in 2005 (original publication [here](https://doi.org/10.1073/pnas.0506580102)).
+
+* This method ranks all our genes in the experiment by their association with the studied phenotype/treatment, thus not restricting the analysis to significant genes only (with p-value < $\alpha$).
+
+* The genes in a pathway are located in such ranking, thus identifying their association level with the phenotype/treatment. 
+
+* Based on the ranking and where the pathway genes are within that ranking, an enrichment score and a corresponding p-value are computed to assess whether the pathway is positively or negatively affected in the experiment.
+
+
+## Gene Set Enrichment Analysis (GSEA) - Method
+1.- This method first ranks all $N$ genes in our dataset by their decreasing association with the studied phenotype/treatment. 
+    
+The ranking metric varies, but p-value and signed log-fold change (or both multiplied) are common choices.
+
+Example: ranking by decreasing signed log-fold change ($logFC$)
+
+```{r loadGSEAdata, include=FALSE, message=FALSE, warning=FALSE}
+set.seed(1)
+tab <- readRDS("../RObjects/Shrunk_Results.d11.rds") %>% 
+    slice(1:150) %>% 
+    select(log2FoldChange) %>% 
+    rowid_to_column("Index") %>% 
+    arrange(desc(log2FoldChange)) %>% 
+    rowid_to_column("Index2") %>% 
+    mutate(inGeneSetA = Index2 %in% c(2,3,6,8,
+                                      10,11,12,13,
+                                      19,21,23,24, 
+                                      26,28,35,41,
+                                      90,100,110,125)) %>%  
+    mutate(ScoreA = ifelse(inGeneSetA, abs(log2FoldChange)/sum(abs(subset(., inGeneSetA == TRUE)$log2FoldChange)), -1/130)) %>% 
+    mutate(CumScoreA = cumsum(ScoreA)) %>% 
+    mutate(inGeneSetB = Index2 %in% c(77,99,111,117,
+                                      133,134,137,139,
+                                      141,142,143,145,
+                                      146,148,149)) %>%  
+    mutate(ScoreB = ifelse(inGeneSetB, abs(log2FoldChange)/sum(abs(subset(., inGeneSetB == TRUE)$log2FoldChange)), -1/135)) %>% 
+    mutate(CumScoreB = cumsum(ScoreB)) %>% 
+    mutate(inGeneSetC = Index2 %in% 
+               sample(1:150, 20, replace = FALSE)) %>%  
+    mutate(ScoreC = ifelse(inGeneSetC, 
+                          (log2FoldChange)/sum(abs(subset(., inGeneSetC == TRUE)$log2FoldChange)), 
+                          -1/130)) %>% 
+    mutate(CumScoreC = cumsum(ScoreC))
+```
+
+<div style="width: 80%; margin-left: 10%">
+```{r Foldchanges, echo = FALSE, dpi = 300, fig.width= 5, fig.height=2}
+p1 = tab %>% 
+  ggplot(aes(x = Index, y = log2FoldChange)) +
+  geom_segment(aes(xend = Index), yend = 0) + 
+  theme(axis.title = element_text(size = 9), 
+        axis.text = element_text(size = 8))
+
+p2 = tab %>% 
+  ggplot(aes(x = Index2, y = log2FoldChange)) +
+  geom_segment(aes(xend = Index2), yend = 0, linewidth = 0.25) +
+  labs(x = "Ranking Index") +
+      theme(axis.title = element_text(size = 9), 
+        axis.text = element_text(size = 8))
+
+plot_grid(p1, p2, align = "h")
+```
+</div> 
+
+
+## Gene Set Enrichment Analysis (GSEA) - Method  
+2.- The $N_S$ genes in the pathway $S$ are located along the ranking: if the pathway genes are up- or down-regulated, then they appear at the top or bottom of the ranking, respectively.
+
+<div style="width: 80%; margin-left: 10%">
+```{r FoldchangesWithGeneSet, echo = FALSE, dpi = 300, fig.width= 4, fig.height=2, warning=FALSE, message=FALSE}
+tab %>%  
+  ggplot(aes(x = Index2, y = log2FoldChange)) +
+  geom_segment(aes(xend = Index2, colour = inGeneSetA), yend = 0) +
+  scale_colour_manual(values = c("darkgrey", "red")) +
+  guides(colour = FALSE) +
+  labs(x = "Ranking Index")
+```
+</div>
+
+
+## Gene Set Enrichment Analysis (GSEA) - Method  
+3.- GSEA calculates an enrichment score based on the ranking: walk throughout the ranking and, starting from 0, add $\frac{|logFC_g|}{\sum_{g \in S}|logFC_g|}$ if the gene is in the pathway $S$ (go ↑ 1 step of that size) or $-\frac{1}{N-N_S}$ if not (go ↓ 1 step of that size). 
+
+<div style="width: 80%; margin-left: 10%">
+```{r anim1, echo=FALSE, message=FALSE, warning=FALSE}
+p <- tab %>% 
+    ggplot() +
+    geom_segment(aes(x = Index2, xend = Index2, colour = inGeneSetA, 
+                     group = seq_along(Index2)), 
+                  y = -0.25, yend = 0.25) +
+    geom_point(x = 0, y = 0, size = 1, colour = "black") +
+    geom_line(aes(x = Index2, y = CumScoreA)) +
+    scale_y_continuous(limits = c(-1,1)) +
+    scale_colour_manual(values = c("darkgrey", "red")) +
+    guides(colour = FALSE) +
+    labs(x = "Ranking Index", y = "Enrichment Score") +
+    theme(axis.title = element_text(size = 7), 
+         axis.text = element_text(size = 6)) +
+    transition_reveal(Index2) 
+
+animate(p, nframes = 150, fps = 10, renderer = gifski_renderer(loop = FALSE), 
+        res = 300, width = 3.5, height = 1.8, units = "in", bg = "transparent")
+```
+</div>
+
+## Gene Set Enrichment Analysis (GSEA) - Method  
+
+* The increase $\frac{|logFC_g|}{\sum_{g \in S}|logFC_g|}$ in the enrichment score for those genes in $S$ is proportional to their $logFC$ as we want to capture not only if the pathway gene is at the top/bottom but also to what extent it is affected. This number is normalized by the sum of the $logFC$ of all genes in $S$ to account for the size of the pathway and the scale of the metric used for ranking.
+
+* The decrease $\frac{1}{N-N_S}$ for those genes not in $S$ represents the same decrease in the enrichment score, normalized by the number of such genes outside $S$ (i.e. $N-N_S$ genes).
+
+## Gene Set Enrichment Analysis (GSEA) - Method  
+
+The final enrichment score $ES$ for pathway $S$ represents the value in the walking sum that more greatly deviates from zero.
+
+<div style="width: 80%; margin-left: 10%">
+```{r ES, echo=FALSE, message=FALSE, warning=FALSE, fig.width= 4, fig.height=2}
+p <- tab %>% 
+    ggplot() +
+    geom_segment(aes(x = Index2, xend = Index2, colour = inGeneSetA, 
+                     group = seq_along(Index2)), 
+                  y = -0.25, yend = 0.25) +
+    geom_point(x = 0, y = 0, size = 1, colour = "black") +
+    geom_line(aes(x = Index2, y = CumScoreA)) +
+    geom_segment(x = which.max(tab$CumScoreA), xend = which.max(tab$CumScoreA),
+                  y = 0, yend = max(tab$CumScoreA), color = "blue") +
+    scale_y_continuous(limits = c(-1,1)) +
+    scale_colour_manual(values = c("darkgrey", "red")) +
+    guides(colour = FALSE) +
+    labs(x = "Ranking Index", y = "Enrichment Score") +
+    theme(axis.title = element_text(size = 9), 
+        axis.text = element_text(size = 8)) 
+p
+```
+</div>
+
+## GSEA - Calculate the enrichment score
+
+* A different gene set enriched at the bottom of the gene ranking:
+
+<div style="width: 80%; margin-left: 10%">
+```{r anim2, echo=FALSE, warning=FALSE, message=FALSE}
+p <- tab %>% 
+    ggplot(aes(x = Index2)) +
+    geom_segment(aes(xend = Index2, colour = inGeneSetB,
+                     group = seq_along(Index2)), 
+                  y = -0.25, yend = 0.25) +
+    geom_line(aes(y = CumScoreB)) +
+    geom_point(x = 0, y = 0, size = 1, colour = "black") +
+    scale_y_continuous(limits = c(-1,1)) +
+    labs(x = "Ranking Index", y = "Enrichment Score") +
+    scale_colour_manual(values = c("darkgrey", "red")) +
+    guides(colour = FALSE) +
+    transition_reveal(Index2)
+
+animate(p, nframes = 150, fps = 15, renderer = gifski_renderer(loop = FALSE), 
+        res = 300, width = 4, height = 2.5, units = "in", bg = "transparent")
+```
+</div>
+
+
+## GSEA - Calculate the enrichment score
+
+* A random gene set: 
+
+<div style="width: 80%; margin-left: 10%">
+```{r anim3, echo=FALSE, message=FALSE, warning=FALSE}
+p <- tab %>% 
+    ggplot() +
+    geom_segment(aes(x = Index2, xend = Index2, colour = inGeneSetC, 
+                     group = seq_along(Index2)), 
+                  y = -0.25, yend = 0.25) +
+    geom_point(x = 0, y = 0, size = 1, colour = "black") +
+    geom_line(aes(x = Index2, y = CumScoreC)) +
+    scale_y_continuous(limits = c(-1,1)) +
+    scale_colour_manual(values = c("darkgrey", "red")) +
+    guides(colour = FALSE) +
+    labs(x = "Ranking Index", y = "Enrichment Score") +
+    transition_reveal(Index2)
+
+animate(p, nframes = 150, fps = 10, renderer = gifski_renderer(loop = FALSE), 
+        res = 300, width = 4, height = 2.5, units = "in", bg = "transparent")
+```
+</div>
+
+
+## Gene Set Enrichment Analysis (GSEA) - Method  
+4.- The p-value of the enrichment score is computed empirically by either: 1) permuting the sample phenotype/treatment labels, performing differential gene expression again to obtain new gene logFCs, then re-computing $ES$ for $S$, or 2) drawing random gene sets of the same size as $S$ from the genome and computing their enrichment score against the original ranking.
+
+Both generate an empirical null distribution of enrichment scores. The p-value is the proportion of such  scores that are equal or greater than the observed $ES$.
+
+<div style="width: 50%; margin-left: 30%; padding-top: 10px">
+```{r pvalue, echo=FALSE, message=FALSE, warning=FALSE, fig.width= 4.5, fig.height=3}
+x1 <- seq(-6, 6, length=100)
+hx1 <- dnorm(x1, mean = 0, sd = 1.5)
+par(bg = NA, mar = c(5, 4, 0, 4) + 0.1) 
+
+plot(x1, hx1, type = "l", lty = 1, lwd = 2,
+     xlab = "Enrichment Score", ylab = "Density",
+     col = "tomato", ylim = c(0, 0.3), xlim = c(-7, 7))
+abline(v = 4, col = "darkgreen", lty = 2, lwd = 2)
+```
+</div>
+
+
+
+## Recap
+
+Question: Do the differentially expressed genes tend to relate
+to specific pathways or ontological groups of genes?
+
+For a given contrast and a given gene set.
+
+Two methods:
+
+* Over Representation Analysis (ORA)
+
+    - split genes: in pathway or not, of interest or not
+    - Fisher's exact test for ratio of 'pathway' odds in the two 'interest' classes   
+
+* Gene Set Enrichment Analysis (GSEA)
+
+    - rank all genes using significance and/or log2FoldChange
+    - compute enrichment score
+    - compute its significance
+
+Both methods are applicable to series of gene sets.
