@@ -6,7 +6,6 @@
 #                         5. RNA-seq Data Exploration
 # ------------------------------------------------------------------------------
 
-
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 #                           1. Count data import
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -34,7 +33,6 @@ arrange(sampleinfo, Status, TimePoint, Replicate)
 # 12 SRR7657875 3         Uninfected d33
 
 ## Read count data from Salmon
-
 files <- file.path("salmon", sampleinfo$SampleName, "quant.sf")
 files
 # [1] "salmon/SRR7657878/quant.sf" "salmon/SRR7657881/quant.sf" "salmon/SRR7657880/quant.sf"
@@ -69,7 +67,6 @@ head(tx2gene)
 txi <- tximport(files, type = "salmon", tx2gene = tx2gene)
 class(txi)
 # [1] "list"
-
 names(txi)
 # [1] "abundance"           "counts"              "length"              "countsFromAbundance"
 
@@ -209,7 +206,7 @@ autoplot(pcDat,
          size = 5) +
     geom_text_repel(aes(x = PC1, y = PC2, label = SampleName), box.padding = 0.8)
 
-
+## Swap samples
 sampleinfo <- mutate(sampleinfo,
                      Status = case_when(
                          SampleName=="SRR7657882" ~ "Uninfected",
@@ -244,7 +241,7 @@ autoplot(pcDat,
 library(ggdendro) # to plot clustering results
 
 ## Useful for:
-# - Identifying sample relationships based on their Euclidean distance
+# - Identifying sample relationships based on their Euclidean distance: Σ(gᵢ₂-gᵢ₁)²
 
 hclDat <-  t(rlogcounts) %>%
     dist(method = "euclidean") %>%
