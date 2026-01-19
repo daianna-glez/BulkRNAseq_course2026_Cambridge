@@ -114,7 +114,7 @@ For details see this [blog post](https://daianna-glez.github.io/daianna_blog/pos
 
 
 ## Gene Set Enrichment Analysis (GSEA) - Method
-1.- This method first ranks all $N$ genes in our dataset by their decreasing association with the studied phenotype/treatment. 
+1.- This method first ranks all genes in our dataset by their decreasing association with the studied phenotype/treatment. 
     
 The ranking metric varies, but p-value and signed log-fold change (or both multiplied) are common choices.
 
@@ -170,7 +170,7 @@ plot_grid(p1, p2, align = "h")
 
 
 ## Gene Set Enrichment Analysis (GSEA) - Method  
-2.- The $N_S$ genes in the pathway $S$ are located along the ranking: if the pathway genes are up- or down-regulated, then they appear at the top or bottom of the ranking, respectively.
+2.- The genes in the pathway are located along the ranking: if the pathway genes are up- or down-regulated, then they appear at the top or bottom of the ranking, respectively.
 
 <div style="width: 80%; margin-left: 10%">
 ```{r FoldchangesWithGeneSet, echo = FALSE, dpi = 300, fig.width= 4, fig.height=2, warning=FALSE, message=FALSE}
@@ -185,7 +185,7 @@ tab %>%
 
 
 ## Gene Set Enrichment Analysis (GSEA) - Method  
-3.- GSEA calculates an enrichment score based on the ranking: walk throughout the ranking and, starting from 0, add $\frac{|logFC_g|}{\sum_{g \in S}|logFC_g|}$ if the gene is in the pathway $S$ (go ↑ 1 step of that size) or $-\frac{1}{N-N_S}$ if not (go ↓ 1 step of that size). 
+3.- GSEA calculates an enrichment score based on the ranking:  walk throughout the ranking and, starting from 0, go up 1 step if the gene is in the pathway or go down 1 step if not.
 
 <div style="width: 80%; margin-left: 10%">
 ```{r anim1, echo=FALSE, message=FALSE, warning=FALSE}
@@ -211,13 +211,13 @@ animate(p, nframes = 150, fps = 10, renderer = gifski_renderer(loop = FALSE),
 
 ## Gene Set Enrichment Analysis (GSEA) - Method  
 
-* The increase $\frac{|logFC_g|}{\sum_{g \in S}|logFC_g|}$ in the enrichment score for those genes in $S$ is proportional to their $logFC$ as we want to capture not only if the pathway gene is at the top/bottom but also to what extent it is affected. This number is normalized by the sum of the $logFC$ of all genes in $S$ to account for the size of the pathway and the scale of the metric used for ranking.
+* The step size for a gene in the pathway is proportional to its $logFC$ (or whatever the ranking metric was) as we want to capture not only if the pathway gene is at the top/bottom but also to what extent it is affected. The gene's step size is normalized by the sum of the metric of all genes in the pathway to account for the pathway size and the scale of the metric used for ranking.
 
-* The decrease $\frac{1}{N-N_S}$ for those genes not in $S$ represents the same decrease in the enrichment score, normalized by the number of such genes outside $S$ (i.e. $N-N_S$ genes).
+* The step size for those genes not in the pathway is the same decrease for all, normalized by the number of such genes outside the pathway.
 
-## Gene Set Enrichment Analysis (GSEA) - Method  
+## Gene Set Enrichment Analysis (GSEA) - Method 
 
-The final enrichment score $ES$ for pathway $S$ represents the value in the walking sum that more greatly deviates from zero.
+The final enrichment score for the pathway represents the value in the walking sum that more greatly deviates from zero.
 
 <div style="width: 80%; margin-left: 10%">
 ```{r ES, echo=FALSE, message=FALSE, warning=FALSE, fig.width= 4, fig.height=2}
@@ -291,9 +291,9 @@ animate(p, nframes = 150, fps = 10, renderer = gifski_renderer(loop = FALSE),
 
 
 ## Gene Set Enrichment Analysis (GSEA) - Method  
-4.- The p-value of the enrichment score is computed empirically by either: 1) permuting the sample phenotype/treatment labels, performing differential gene expression again to obtain new gene logFCs, then re-computing $ES$ for $S$, or 2) drawing random gene sets of the same size as $S$ from the genome and computing their enrichment score against the original ranking.
+4.- The p-value of the enrichment score is computed by either: 1) permuting the sample phenotype/treatment labels to obtain new gene logFCs and with it a new enrichment score, or 2) drawing random gene sets of the same size as the pathway and computing their enrichment score against the original ranking.
 
-Both generate an empirical null distribution of enrichment scores. The p-value is the proportion of such  scores that are equal or greater than the observed $ES$.
+Both generate a distribution of enrichment scores without biological meaning. The p-value is the proportion of such scores that are equal or greater than the observed score.
 
 <div style="width: 50%; margin-left: 30%; padding-top: 10px">
 ```{r pvalue, echo=FALSE, message=FALSE, warning=FALSE, fig.width= 4.5, fig.height=3}
